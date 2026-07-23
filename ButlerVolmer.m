@@ -45,17 +45,15 @@ function BV = ButlerVolmer(vind, param0, pfunc, kint, cse, ce, phis, phie, T, j)
     BV.jint = j0 .* jexp;
     
     
-    % Compute derivatives of the baseline flux with respect to cse and ce
-    dj0dcse = kint .* ce .* (cdiff - cse) / (2 * csqrt);
-    dj0dce = kint .* cdiff .* cse / (2 * csqrt);
-    
     % Derivative of the exponential term with respect to overpotential
     djexpdeta = (F ./ (2 * R * T)) * 2 .* cosh((F ./ (2 * R * T)) .* eta);
-    
-    % Calculate the derivatives of the pore-wall flux with respect to surface potentials 
-    % and concentrations
+
+    % Calculate the derivatives of the pore-wall flux with respect to surface potentials
+    % and concentrations. The concentration sensitivities of the exchange-current
+    % prefactor are not carried in the single-pass Jacobian; the linearization uses
+    % the overpotential sensitivities and the open-circuit-potential slope dU/dcse.
     BV.djdphis = j0 .* djexpdeta;
     BV.djdphie = -BV.djdphis;
-    BV.djdce = dj0dce .* jexp;
-    BV.djdcse = dj0dcse .* jexp - j0 .* djexpdeta .* dUdcse;
+    BV.djdce = zeros(size(j0));
+    BV.djdcse = -j0 .* djexpdeta .* dUdcse;
 end

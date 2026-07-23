@@ -70,21 +70,33 @@ function [mysim, time, Vcell, T, elapsed_time] = run_P2D(Crate)
     mysim.dt0 = mysim.dt;
     mysim.result.sys1{1} = mysim.sys1.x;  % Save system1 initial state
     mysim.result.sys1T{1} = mysim.sys2.T;   % Save system2 initial state
-    
+
+    % Staggered startup: system 2 (T, q) takes one half step so it lives on
+    % the half-integer levels t_{k+1/2}; system 1 then always sees T and q at
+    % the midpoint of its interval, and the sources x^k of system 2 sit at the
+    % midpoint of the system-2 interval [t_{k-1/2}, t_{k+1/2}].
+    [mysim, dts2] = sys2_half_start(mysim);
+
     for i = 1:2
-        mysim = time_marching(mysim);
+        mysim = sys1_marching(mysim);
+        mysim = sys2_marching(mysim, mysim.dt, dts2);
+        dts2 = mysim.dt;
         isEnd = terminate_condition(mysim);
-        mysim.result.sys1T{mysim.nt} = mysim.sys2.T;
+        mysim.result.sys1T{mysim.nt} = (mysim.sys2.To + mysim.sys2.T) / 2;
     end
     while ~isEnd
-        mysim = time_marching(mysim);
+        dtcur = mysim.dt;
+        mysim = sys1_marching(mysim);
         mysim = time_stepping(mysim);
+        dtb = (dtcur + mysim.dt) / 2;  % bridge to the next half level
+        mysim = sys2_marching(mysim, dtb, dts2);
+        dts2 = dtb;
         isEnd = terminate_condition(mysim);
-        mysim.result.sys1T{mysim.nt} = mysim.sys2.T;
+        mysim.result.sys1T{mysim.nt} = (mysim.sys2.To + mysim.sys2.T) / 2;
     end
-    
+
     elapsed_time = toc;
-    
+
     time = mysim.time(1:mysim.nt);
     Vcell = mysim.Vcell(1:mysim.nt);
     T = cell2mat(mysim.result.sys1T);
@@ -97,7 +109,7 @@ function [mysim, time, Vcell, T, elapsed_time] = run_P4D(Crate)
     init = init_Parameters;
     opt = opt_Simulation;
     opt.nx = [3, 13, 4, 12, 3]';
-    opt.ny = 12;
+    opt.ny = 11;
     opt.nz0 = [1, 4, 2, 4, 1]';
     opt.nz = sum(opt.nz0);
     opt.Crate = Crate;
@@ -122,33 +134,70 @@ function [mysim, time, Vcell, T, elapsed_time] = run_P4D(Crate)
     mysim.dt0 = mysim.dt;
     mysim.result.sys1{1} = mysim.sys1.x;  % Save system1 initial state
     mysim.result.sys1T{1} = mysim.sys2.T;   % Save system2 initial state
-    
+
+    % Staggered startup: system 2 (T, q) takes one half step so it lives on
+    % the half-integer levels t_{k+1/2}; system 1 then always sees T and q at
+    % the midpoint of its interval, and the sources x^k of system 2 sit at the
+    % midpoint of the system-2 interval [t_{k-1/2}, t_{k+1/2}].
+    [mysim, dts2] = sys2_half_start(mysim);
+
     for i = 1:2
-        mysim = time_marching(mysim);
+        mysim = sys1_marching(mysim);
+        mysim = sys2_marching(mysim, mysim.dt, dts2);
+        dts2 = mysim.dt;
         isEnd = terminate_condition(mysim);
-        mysim.result.sys1T{mysim.nt} = mysim.sys2.T;
+        mysim.result.sys1T{mysim.nt} = (mysim.sys2.To + mysim.sys2.T) / 2;
     end
     while ~isEnd
-        mysim = time_marching(mysim);
+        dtcur = mysim.dt;
+        mysim = sys1_marching(mysim);
         mysim = time_stepping(mysim);
+        dtb = (dtcur + mysim.dt) / 2;  % bridge to the next half level
+        mysim = sys2_marching(mysim, dtb, dts2);
+        dts2 = dtb;
         isEnd = terminate_condition(mysim);
-        mysim.result.sys1T{mysim.nt} = mysim.sys2.T;
+        mysim.result.sys1T{mysim.nt} = (mysim.sys2.To + mysim.sys2.T) / 2;
     end
-    
+
     elapsed_time = toc;
-    
+
     time = mysim.time(1:mysim.nt);
     Vcell = mysim.Vcell(1:mysim.nt);
     T = cell2mat(mysim.result.sys1T);
     T = T(:, 1:mysim.nt);
 end
 
-%% Time Marching Function
+%% Time Marching Function (initialization phase)
 function mysim = time_marching(mysim)
     mysim = sys2_update_parameter(mysim);
     mysim = sys2_update_variable(mysim);
     mysim = sys1_update_parameter(mysim);
     mysim = sys1_update_variable(mysim);
+end
+
+%% Staggered Startup: advance system 2 alone by half a step
+function [mysim, dts2] = sys2_half_start(mysim)
+    dts2 = mysim.dt / 2;
+    dtn = mysim.dt; dt0n = mysim.dt0;
+    mysim.dt = dts2; mysim.dt0 = dts2;
+    mysim = sys2_update_parameter(mysim);
+    mysim = sys2_update_variable(mysim);
+    mysim.dt = dtn; mysim.dt0 = dt0n;
+end
+
+%% System 1 Marching (electrochemical variables over [t_k, t_{k+1}])
+function mysim = sys1_marching(mysim)
+    mysim = sys1_update_parameter(mysim);
+    mysim = sys1_update_variable(mysim);
+end
+
+%% System 2 Marching (T, q over the bridge [t_{k-1/2}, t_{k+1/2}])
+function mysim = sys2_marching(mysim, dts2, dts2_prev)
+    dtn = mysim.dt; dt0n = mysim.dt0;
+    mysim.dt = dts2; mysim.dt0 = dts2_prev;
+    mysim = sys2_update_parameter(mysim);
+    mysim = sys2_update_variable(mysim);
+    mysim.dt = dtn; mysim.dt0 = dt0n;
 end
 
 %% Termination Condition Function

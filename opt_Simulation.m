@@ -20,7 +20,7 @@ function opt = opt_Simulation
     % Number of control volumes for each region: [ncc, ne, sep, pe, pcc]
     % For P4D settings (uncomment if needed)
     % opt.nx = [3, 13, 4, 12, 3]';
-    % opt.ny = 12;
+    % opt.ny = 11;
     % opt.nz0 = [1, 4, 2, 4, 1]';   % single-sided tab
     % opt.nz0 = [2, 8, 2, 0, 0]';   % double-sided tab
     % For P2D settings

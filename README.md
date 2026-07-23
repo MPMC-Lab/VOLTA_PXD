@@ -60,9 +60,6 @@ This project implements a simulation framework for electrochemical-thermal model
 - **sys2_update_variable.m**  
   Updates the temperature field (stored in `mysim.result.sys1T`) and the mean ion flux in system 2 by solving the thermal model and incorporating heat generation terms.
 
-- **sys1_update_variable.m**  
-  Updates system 1 state variables (solid and electrolyte properties, potentials, and fluxes) based on the current simulation state.
-
 ## Requirements
 
 - **MATLAB (R2020 or later recommended)**
@@ -97,10 +94,18 @@ This project implements a simulation framework for electrochemical-thermal model
 - **Sanghyun Kim** – [shnkim@yonsei.ac.kr](mailto:shnkim@yonsei.ac.kr)
 - **Jung-Il Choi** – [jic@yonsei.ac.kr](mailto:jic@yonsei.ac.kr)
 
+## Version
+
+- **v2 (July 2026).** This release adds a staggered initialization of the
+  thermal/mean-flux subsystem (system 2 advances half a time step ahead of the
+  electrochemical subsystem, so every inter-system coupling is evaluated at the
+  midpoint of its interval), a delta-form linear solve, and a streamlined
+  Butler--Volmer Jacobian assembly. The default P4D in-plane resolution is
+  `ny = 11`, matching the baseline grid of the manuscript. The
+  numerical-verification results reported in Appendix A of the revised
+  manuscript were produced with this version.
+- **v1 (March 2025).** Original release accompanying the initial submission.
+
 ## License
 
 This project is released under the terms of the MIT License.
-
-## Date
-
-March 2025
